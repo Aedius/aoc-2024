@@ -7,8 +7,8 @@ fn main() {
     let result1 = 2264607;
     let example2 = 31;
 
-    aoc1!(Container, "day1", example1);
-    aoc2!(Container, "day1", example1, result1, example2);
+    aoc1!(Container, "day01", example1);
+    aoc2!(Container, "day01", example1, result1, example2);
 }
 
 #[derive(Debug)]
