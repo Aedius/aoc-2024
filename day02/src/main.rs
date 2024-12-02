@@ -1,12 +1,15 @@
-use helper::{aoc1, aoc2, InputReader};
+use helper::{InputReader, Solver};
 
 fn main() {
-    let example1 = 2;
-    let result1 = 572;
-    let example2 = 4;
+    let solver: Solver<Container> = Solver {
+        example1: 2.to_string(),
+        result1: Some("572".to_string()),
+        example2: Some("4".to_string()),
+        result2: Some("612".to_string()),
+        kind: Default::default(),
+    };
 
-    aoc1!(Container, "day02", example1);
-    aoc2!(Container, "day02", example1, result1, example2);
+    solver.solve("day02");
 }
 
 #[derive(Debug)]
@@ -38,11 +41,11 @@ impl InputReader for Container {
         })
     }
 
-    fn star1(self) -> String {
+    fn star1(&self) -> String {
         self.data.iter().filter(|a| a.safe).count().to_string()
     }
 
-    fn star2(self) -> String {
+    fn star2(&self) -> String {
         let mut nb = self.data.iter().filter(|a| a.safe).count();
 
         let to_check: Vec<&Row> = self.data.iter().filter(|a| !a.safe).collect();

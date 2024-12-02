@@ -1,13 +1,16 @@
-use helper::{aoc1, aoc2, InputReader};
+use helper::{InputReader, Solver};
 use regex::Regex;
 
 fn main() {
-    let example1 = 0;
-    let result1 = 0;
-    let example2 = 0;
+    let solver: Solver<Container> = Solver {
+        example1: "".to_string(),
+        result1: None,
+        example2: None,
+        result2: None,
+        kind: Default::default(),
+    };
 
-    aoc1!(Container, "dayTemplate", example1);
-    aoc2!(Container, "dayTemplate", example1, result1, example2);
+    solver.solve("dayTemplate");
 }
 
 #[derive(Debug)]
@@ -28,11 +31,11 @@ impl InputReader for Container {
         todo!("add_line")
     }
 
-    fn star1(self) -> String {
+    fn star1(&self) -> String {
         todo!("star1")
     }
 
-    fn star2(self) -> String {
+    fn star2(&self) -> String {
         todo!("star2")
     }
 }

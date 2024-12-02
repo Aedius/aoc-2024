@@ -1,4 +1,5 @@
 use easy_reader::EasyReader;
+use std::marker::PhantomData;
 use std::{fs::File, io::Error};
 
 pub trait InputReader {
@@ -21,68 +22,46 @@ pub trait InputReader {
 
     fn add_line(&mut self, line: &str);
 
-    fn star1(self) -> String;
-    fn star2(self) -> String;
+    fn star1(&self) -> String;
+    fn star2(&self) -> String;
 }
 
-#[macro_export]
-macro_rules! aoc1 {
-    ($c:ty, $f:expr, $r: expr) => {
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/test.txt", $f)).unwrap();
-        assert_eq!(container.star1(), $r.to_string());
-
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/input.txt", $f)).unwrap();
-
-        println!("Star 1 : {}", container.star1());
-    };
-}
-#[macro_export]
-macro_rules! aoc1_full {
-    ($c:ty, $f:expr, $r: expr, $s: expr) => {
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/test.txt", $f)).unwrap();
-        assert_eq!(container.star1(), $r.to_string());
-
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/input.txt", $f)).unwrap();
-        assert_eq!(container.star1(), $s.to_string());
-    };
+pub struct Solver<T> {
+    pub example1: String,
+    pub result1: Option<String>,
+    pub example2: Option<String>,
+    pub result2: Option<String>,
+    pub kind: PhantomData<T>,
 }
 
-#[macro_export]
-macro_rules! aoc2_alone {
-    ($c:ty, $f:expr, $t: expr) => {
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/test.txt", $f)).unwrap();
-        assert_eq!(container.star2(), $t.to_string());
+impl<T: Default + InputReader> Solver<T> {
+    pub fn solve(self, path: &str) {
+        let mut container_example = T::default();
+        container_example
+            .read(&format!("./{}/test.txt", path))
+            .unwrap();
 
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/input.txt", $f)).unwrap();
+        let mut container_result = T::default();
+        container_result
+            .read(&format!("./{}/input.txt", path))
+            .unwrap();
 
-        println!("Star 2 : {}", container.star2());
-    };
-}
+        assert_eq!(container_example.star1(), self.example1);
 
-#[macro_export]
-macro_rules! aoc2 {
-    ($c:ty, $f:expr, $r: expr, $s: expr, $t: expr) => {
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/test.txt", $f)).unwrap();
-        assert_eq!(container.star1(), $r.to_string());
+        let star1 = container_result.star1();
+        println!("Star 1 : {}", star1);
+        if let Some(result1) = self.result1 {
+            assert_eq!(star1, result1);
+        }
 
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/input.txt", $f)).unwrap();
-        assert_eq!(container.star1(), $s.to_string());
+        if let Some(example2) = self.example2 {
+            assert_eq!(container_example.star2(), example2);
+        }
+        let star2 = container_result.star2();
+        println!("Star 2 : {}", star2);
 
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/test.txt", $f)).unwrap();
-        assert_eq!(container.star2(), $t.to_string());
-
-        let mut container = <$c>::default();
-        container.read(&*format!("./{}/input.txt", $f)).unwrap();
-
-        println!("Star 2 : {}", container.star2());
-    };
+        if let Some(result2) = self.result2 {
+            assert_eq!(star2, result2);
+        }
+    }
 }

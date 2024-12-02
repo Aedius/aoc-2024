@@ -1,14 +1,17 @@
-use helper::{aoc1, aoc2, InputReader};
+use helper::{InputReader, Solver};
 use regex::Regex;
 use std::collections::HashMap;
 
 fn main() {
-    let example1 = 11;
-    let result1 = 2264607;
-    let example2 = 31;
+    let solver: Solver<Container> = Solver {
+        example1: 11.to_string(),
+        result1: Some("2264607".to_string()),
+        example2: Some("31".to_string()),
+        result2: Some("19457120".to_string()),
+        kind: Default::default(),
+    };
 
-    aoc1!(Container, "day01", example1);
-    aoc2!(Container, "day01", example1, result1, example2);
+    solver.solve("day01");
 }
 
 #[derive(Debug)]
@@ -36,12 +39,12 @@ impl InputReader for Container {
         }
     }
 
-    fn star1(self) -> String {
-        let mut list1 = self.list1;
+    fn star1(&self) -> String {
+        let mut list1 = self.list1.clone();
         list1.sort();
         let mut list1 = list1.iter();
 
-        let mut list2 = self.list2;
+        let mut list2 = self.list2.clone();
         list2.sort();
         let mut list2 = list2.iter();
 
@@ -54,9 +57,9 @@ impl InputReader for Container {
         result.to_string()
     }
 
-    fn star2(self) -> String {
-        let hash1 = Self::get_hash_map(self.list1);
-        let hash2 = Self::get_hash_map(self.list2);
+    fn star2(&self) -> String {
+        let hash1 = Self::get_hash_map(self.list1.clone());
+        let hash2 = Self::get_hash_map(self.list2.clone());
 
         let mut result = 0;
 
