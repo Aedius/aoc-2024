@@ -41,12 +41,12 @@ impl<T: Default + InputReader> Solver<T> {
             .read(&format!("./{}/test.txt", path))
             .unwrap();
 
+        assert_eq!(container_example.star1(), self.example1);
+
         let mut container_result = T::default();
         container_result
             .read(&format!("./{}/input.txt", path))
             .unwrap();
-
-        assert_eq!(container_example.star1(), self.example1);
 
         let star1 = container_result.star1();
         println!("Star 1 : {}", star1);
