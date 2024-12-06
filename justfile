@@ -14,3 +14,6 @@ new day:
 
 run day:
     cargo run -p day{{day}}
+
+watch day:
+    cargo watch -- cargo run -p day{{day}}
