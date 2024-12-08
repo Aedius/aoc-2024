@@ -27,7 +27,10 @@ impl Default for Container {
 }
 
 impl InputReader for Container {
-    fn add_line(&mut self, _line: &str) {
+    fn add_line(&mut self, line: &str) {
+        if line.is_empty() {
+            return;
+        }
         todo!("add_line")
     }
 

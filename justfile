@@ -2,7 +2,7 @@ default: precommit
 
 precommit:
     cargo fmt
-    cargo clippy
+    cargo watch -- cargo clippy
 
 new day:
     cp -r dayTemplate day{{day}}
