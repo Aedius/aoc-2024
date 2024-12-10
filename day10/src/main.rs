@@ -4,9 +4,9 @@ use std::cmp::Ordering;
 fn main() {
     let solver: Solver<Container> = Solver {
         example1: "36".to_string(),
-        result1: None,
-        example2: None,
-        result2: None,
+        result1: Some("694".to_string()),
+        example2: Some("81".to_string()),
+        result2: Some("1497".to_string()),
         kind: Default::default(),
     };
 
@@ -42,14 +42,20 @@ impl InputReader for Container {
         let mut res = 0;
 
         for start in self.path_start() {
-            res += self.get_trailhead(&start, 0).len();
+            res += self.get_trailhead_star_1(&start, 0).len();
         }
 
         res.to_string()
     }
 
     fn star2(&self) -> String {
-        todo!("star2")
+        let mut res = 0;
+
+        for start in self.path_start() {
+            res += self.get_trailhead_star_2(&start, 0);
+        }
+
+        res.to_string()
     }
 }
 
@@ -124,7 +130,7 @@ impl Container {
         res
     }
 
-    fn get_trailhead(&self, pos: &Pos, value: u32) -> Vec<Pos> {
+    fn get_trailhead_star_1(&self, pos: &Pos, value: u32) -> Vec<Pos> {
         if value == 9 {
             return vec![pos.clone()];
         }
@@ -134,12 +140,27 @@ impl Container {
         let mut res = Vec::new();
 
         for next in &nexts {
-            let mut local = self.get_trailhead(next, value + 1);
+            let mut local = self.get_trailhead_star_1(next, value + 1);
             res.append(&mut local);
         }
 
         res.sort();
         res.dedup();
+
+        res
+    }
+    fn get_trailhead_star_2(&self, pos: &Pos, value: u32) -> usize {
+        if value == 9 {
+            return 1;
+        }
+
+        let nexts = self.get_next(pos, value);
+
+        let mut res = 0;
+
+        for next in &nexts {
+            res += self.get_trailhead_star_2(next, value + 1);
+        }
 
         res
     }
