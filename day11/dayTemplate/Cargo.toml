@@ -1,8 +1,0 @@
-[package]
-name = "daytemplate"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-helper={path = "../helper"}
-regex = "1.11"

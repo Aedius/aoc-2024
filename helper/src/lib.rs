@@ -41,7 +41,7 @@ impl<T: Default + InputReader> Solver<T> {
             .read(&format!("./{}/test.txt", path))
             .unwrap();
 
-        assert_eq!(container_example.star1(), self.example1);
+        assert_eq!(container_example.star1(), self.example1, "Example star 1");
 
         let mut container_result = T::default();
         container_result
@@ -51,19 +51,19 @@ impl<T: Default + InputReader> Solver<T> {
         let star1 = container_result.star1();
         println!("Star 1 : {}", star1);
         if let Some(result1) = self.result1 {
-            assert_eq!(star1, result1);
+            assert_eq!(star1, result1, "Result star 1");
         }
 
         if let Some(example2) = self.example2 {
-            assert_eq!(container_example.star2(), example2);
-        }else{
+            assert_eq!(container_example.star2(), example2, "Example star 2");
+        } else {
             println!("Example 2 : {}", container_example.star2());
         }
         let star2 = container_result.star2();
         println!("Star 2 : {}", star2);
 
         if let Some(result2) = self.result2 {
-            assert_eq!(star2, result2);
+            assert_eq!(star2, result2, "Result star 2");
         }
     }
 }
