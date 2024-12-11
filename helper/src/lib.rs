@@ -56,6 +56,8 @@ impl<T: Default + InputReader> Solver<T> {
 
         if let Some(example2) = self.example2 {
             assert_eq!(container_example.star2(), example2);
+        }else{
+            println!("Example 2 : {}", container_example.star2());
         }
         let star2 = container_result.star2();
         println!("Star 2 : {}", star2);
