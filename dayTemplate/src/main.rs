@@ -35,6 +35,8 @@ impl InputReader for Container {
     }
 
     fn star1(&self) -> String {
+        dbg!(self);
+
         todo!("star1")
     }
 

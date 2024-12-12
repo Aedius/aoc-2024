@@ -2,6 +2,7 @@ default: precommit
 
 precommit:
     cargo fmt
+    cargo test
     cargo watch -- cargo clippy
 
 new day:
@@ -10,10 +11,12 @@ new day:
     sed -i "s/\"daytemplate\"/\"day{{day}}\"/" day{{day}}/Cargo.toml
     sed -i "s/\"dayTemplate\"/\"day{{day}}\"/" day{{day}}/src/main.rs
     sed -i "s/\"dayTemplate\"/\"day{{day}}\",\n    \"dayTemplate\"/" Cargo.toml
-    just precommit
 
 run day:
     cargo run -p day{{day}}
+
+test day:
+    cargo watch -- cargo test -p day{{day}}
 
 watch day:
     cargo watch -- cargo run -p day{{day}}
