@@ -15,8 +15,8 @@ new day:
 run day:
     cargo run -p day{{day}}
 
-test day:
-    cargo watch -- cargo test -p day{{day}}
+test day *param:
+    cargo watch -- cargo test -p day{{day}} {{param}}
 
 watch day:
     cargo watch -- cargo run -p day{{day}}

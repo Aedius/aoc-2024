@@ -7,9 +7,9 @@ use std::iter::Sum;
 fn main() {
     let solver: Solver<Container> = Solver {
         example1: "1930".to_string(),
-        result1: None,
-        example2: None,
-        result2: None,
+        result1: Some("1477762".to_string()),
+        example2: Some("1206".to_string()),
+        result2: Some("923480".to_string()),
         kind: Default::default(),
     };
 
@@ -133,6 +133,97 @@ impl InputReader for Container {
     }
 
     fn star1(&self) -> String {
+        self.star(|zone| zone.iter().sum())
+    }
+
+    fn star2(&self) -> String {
+        self.star(|zone| {
+            let mut zone = zone.clone();
+            zone.retain(|p| p.west || p.east || p.north || p.south);
+
+            let mut north: HashMap<isize, Vec<Point>> = HashMap::new();
+            let mut south: HashMap<isize, Vec<Point>> = HashMap::new();
+            let mut east: HashMap<isize, Vec<Point>> = HashMap::new();
+            let mut west: HashMap<isize, Vec<Point>> = HashMap::new();
+
+            for p in &zone {
+                if p.north {
+                    let l = north.entry(p.y).or_default();
+                    l.push(p.clone())
+                }
+                if p.south {
+                    let l = south.entry(p.y).or_default();
+                    l.push(p.clone())
+                }
+                if p.east {
+                    let l = east.entry(p.x).or_default();
+                    l.push(p.clone())
+                }
+                if p.west {
+                    let l = west.entry(p.x).or_default();
+                    l.push(p.clone())
+                }
+            }
+
+            let mut wall_north = 0;
+
+            for (_, mut list) in north {
+                list.sort_by(|a, b| a.x.cmp(&b.x));
+                let mut wall = 1;
+                for w in list.windows(2) {
+                    if w[0].x + 1 != w[1].x {
+                        wall += 1;
+                    }
+                }
+                wall_north += wall;
+            }
+
+            let mut wall_south = 0;
+
+            for (_, mut list) in south {
+                list.sort_by(|a, b| a.x.cmp(&b.x));
+                let mut wall = 1;
+                for w in list.windows(2) {
+                    if w[0].x + 1 != w[1].x {
+                        wall += 1;
+                    }
+                }
+                wall_south += wall;
+            }
+
+            let mut wall_east = 0;
+
+            for (_, mut list) in east {
+                list.sort_by(|a, b| a.y.cmp(&b.y));
+                let mut wall = 1;
+                for w in list.windows(2) {
+                    if w[0].y + 1 != w[1].y {
+                        wall += 1;
+                    }
+                }
+                wall_east += wall;
+            }
+
+            let mut wall_west = 0;
+
+            for (_, mut list) in west {
+                list.sort_by(|a, b| a.y.cmp(&b.y));
+                let mut wall = 1;
+                for w in list.windows(2) {
+                    if w[0].y + 1 != w[1].y {
+                        wall += 1;
+                    }
+                }
+                wall_west += wall;
+            }
+
+            wall_north + wall_south + wall_east + wall_west
+        })
+    }
+}
+
+impl Container {
+    fn star(&self, perimeter: fn(&Vec<Point>) -> usize) -> String {
         let mut res: usize = 0;
 
         let mut container = self.clone();
@@ -147,7 +238,7 @@ impl InputReader for Container {
                         let point = occupied.remove();
 
                         let zone = container.get_zone(point.clone());
-                        let perimeter: usize = zone.iter().sum();
+                        let perimeter: usize = perimeter(&zone);
                         let area: usize = zone.len();
                         res += area * perimeter;
                         println!(
@@ -166,12 +257,6 @@ impl InputReader for Container {
         res.to_string()
     }
 
-    fn star2(&self) -> String {
-        todo!("star2")
-    }
-}
-
-impl Container {
     fn get_zone(&mut self, z: Point) -> Vec<Point> {
         let mut to_check = vec![z];
 
@@ -232,7 +317,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn smaller_example() {
+    fn smaller_example_1() {
         let mut container = Container::default();
         container.add_line("AAAA");
         container.add_line("BBCD");
@@ -242,9 +327,20 @@ mod tests {
 
         assert_eq!(container.star1(), "140".to_string());
     }
+    #[test]
+    fn smaller_example_2() {
+        let mut container = Container::default();
+        container.add_line("AAAA");
+        container.add_line("BBCD");
+        container.add_line("BBCC");
+        container.add_line("EEEC");
+        container.after_all_line();
+
+        assert_eq!(container.star2(), "80".to_string());
+    }
 
     #[test]
-    fn not_contiguous_example() {
+    fn not_contiguous_example_1() {
         let mut container = Container::default();
         container.add_line("OOOOO");
         container.add_line("OXOXO");
@@ -254,5 +350,44 @@ mod tests {
         container.after_all_line();
 
         assert_eq!(container.star1(), "772".to_string());
+    }
+    #[test]
+    fn not_contiguous_example_2() {
+        let mut container = Container::default();
+        container.add_line("OOOOO");
+        container.add_line("OXOXO");
+        container.add_line("OOOOO");
+        container.add_line("OXOXO");
+        container.add_line("OOOOO");
+        container.after_all_line();
+
+        assert_eq!(container.star2(), "436".to_string());
+    }
+
+    #[test]
+    fn e_shape_example() {
+        let mut container = Container::default();
+        container.add_line("EEEEE");
+        container.add_line("EXXXX");
+        container.add_line("EEEEE");
+        container.add_line("EXXXX");
+        container.add_line("EEEEE");
+        container.after_all_line();
+
+        assert_eq!(container.star2(), "236".to_string());
+    }
+
+    #[test]
+    fn abba_example() {
+        let mut container = Container::default();
+        container.add_line("AAAAAA");
+        container.add_line("AAABBA");
+        container.add_line("AAABBA");
+        container.add_line("ABBAAA");
+        container.add_line("ABBAAA");
+        container.add_line("AAAAAA");
+        container.after_all_line();
+
+        assert_eq!(container.star2(), "368".to_string());
     }
 }
