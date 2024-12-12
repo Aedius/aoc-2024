@@ -1,6 +1,8 @@
 use helper::{InputReader, Solver};
 use std::cmp::PartialEq;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::iter::Sum;
 
 fn main() {
     let solver: Solver<Container> = Solver {
@@ -18,46 +20,149 @@ fn main() {
 struct Point {
     x: isize,
     y: isize,
+    kind: String,
+    north: bool,
+    east: bool,
+    south: bool,
+    west: bool,
 }
 
-#[derive(Debug, Default)]
+impl<'s> Sum<&'s Point> for usize {
+    fn sum<I: Iterator<Item = &'s Point>>(iter: I) -> Self {
+        let mut res = 0;
+        for p in iter {
+            if p.north {
+                res += 1;
+            }
+            if p.east {
+                res += 1;
+            }
+            if p.south {
+                res += 1;
+            }
+            if p.west {
+                res += 1;
+            }
+        }
+        res
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 struct Container {
-    field: Vec<Vec<(Point, String)>>,
-    zone: HashMap<String, Vec<Point>>,
+    data: HashMap<(isize, isize), Point>,
+    width: usize,
+    height: usize,
 }
 
 impl InputReader for Container {
+    fn after_all_line(&mut self) {
+        for x in 0..self.width {
+            match self
+                .data
+                .entry((x.try_into().unwrap(), (self.height - 1).try_into().unwrap()))
+            {
+                Entry::Occupied(mut p) => {
+                    let n = p.get_mut();
+                    n.south = true;
+                }
+                Entry::Vacant(_) => {
+                    todo!("no vacant allowed");
+                }
+            };
+        }
+        for y in 0..self.width {
+            match self
+                .data
+                .entry(((self.width - 1).try_into().unwrap(), y.try_into().unwrap()))
+            {
+                Entry::Occupied(mut p) => {
+                    let n = p.get_mut();
+                    n.east = true;
+                }
+                Entry::Vacant(_) => {
+                    todo!("no vacant allowed");
+                }
+            };
+        }
+    }
+
     fn add_line(&mut self, line: &str) {
         if line.is_empty() {
             return;
         }
-        let mut row = vec![];
+        self.width = line.len();
         for (x, c) in line.chars().enumerate() {
-            let val = c.to_string();
-            let point = Point {
+            let mut np = Point {
                 x: x.try_into().unwrap(),
-                y: self.field.len().try_into().unwrap(),
+                y: self.height.try_into().unwrap(),
+                kind: c.to_string(),
+                north: false,
+                east: false,
+                south: false,
+                west: false,
             };
-            row.push((point.clone(), val.clone()));
+            match self.data.entry((np.x - 1, np.y)) {
+                Entry::Occupied(mut occupied) => {
+                    let neighbor = occupied.get_mut();
+                    if neighbor.kind != np.kind {
+                        neighbor.east = true;
+                        np.west = true;
+                    }
+                }
+                Entry::Vacant(_) => {
+                    np.west = true;
+                }
+            }
+            match self.data.entry((np.x, np.y - 1)) {
+                Entry::Occupied(mut occupied) => {
+                    let neighbor = occupied.get_mut();
+                    if neighbor.kind != np.kind {
+                        neighbor.south = true;
+                        np.north = true;
+                    }
+                }
+                Entry::Vacant(_) => {
+                    np.north = true;
+                }
+            }
 
-            let zone = self.zone.entry(val).or_default();
-            zone.push(point);
+            self.data.insert((np.x, np.y), np);
         }
-        self.field.push(row)
+        self.height += 1;
     }
 
     fn star1(&self) -> String {
-        let mut res = 0;
+        let mut res: usize = 0;
 
-        for (key, val) in self.zone.iter() {
-            let list = contiguous(val.clone());
-            for zone in list {
-                let area = zone.len();
-                let perimeter = perimeter(&zone);
-                println!("{key} : area {area}, perimeter {perimeter}");
-                res += area * perimeter;
+        let mut container = self.clone();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                match container
+                    .data
+                    .entry((x.try_into().unwrap(), y.try_into().unwrap()))
+                {
+                    Entry::Occupied(occupied) => {
+                        let point = occupied.remove();
+
+                        let zone = container.get_zone(point.clone());
+                        let perimeter: usize = zone.iter().sum();
+                        let area: usize = zone.len();
+                        res += area * perimeter;
+                        println!(
+                            "A region of {} : plants with price {area} * {perimeter} = {}",
+                            point.kind,
+                            area * perimeter
+                        );
+                    }
+                    Entry::Vacant(_) => {
+                        // already taken
+                    }
+                }
             }
         }
+
         res.to_string()
     }
 
@@ -66,89 +171,65 @@ impl InputReader for Container {
     }
 }
 
-impl Container {}
+impl Container {
+    fn get_zone(&mut self, z: Point) -> Vec<Point> {
+        let mut to_check = vec![z];
 
-fn contiguous(mut input: Vec<Point>) -> Vec<Vec<Point>> {
-    let mut result = vec![];
-    while let Some(check) = input.pop() {
-        let list = all_neighbor(input.clone(), &check);
-        for l in &list {
-            input.retain(|p| p != l)
+        let mut res = vec![];
+
+        while !to_check.is_empty() {
+            let mut next = vec![];
+
+            for check in to_check {
+                if !check.south {
+                    match self.data.entry((check.x, check.y + 1)) {
+                        Entry::Occupied(occ) => {
+                            let point = occ.remove();
+                            next.push(point);
+                        }
+                        Entry::Vacant(_) => {}
+                    }
+                }
+                if !check.north {
+                    match self.data.entry((check.x, check.y - 1)) {
+                        Entry::Occupied(occ) => {
+                            let point = occ.remove();
+                            next.push(point);
+                        }
+                        Entry::Vacant(_) => {}
+                    }
+                }
+                if !check.east {
+                    match self.data.entry((check.x + 1, check.y)) {
+                        Entry::Occupied(occ) => {
+                            let point = occ.remove();
+                            next.push(point);
+                        }
+                        Entry::Vacant(_) => {}
+                    }
+                }
+                if !check.west {
+                    match self.data.entry((check.x - 1, check.y)) {
+                        Entry::Occupied(occ) => {
+                            let point = occ.remove();
+                            next.push(point);
+                        }
+                        Entry::Vacant(_) => {}
+                    }
+                }
+                res.push(check);
+            }
+
+            to_check = next;
         }
-        result.push(list);
+
+        res
     }
-    result
-}
-
-fn all_neighbor(input: Vec<Point>, p: &Point) -> Vec<Point> {
-    if input.is_empty() {
-        return vec![p.clone()];
-    }
-    let mut res = vec![p.clone()];
-    let neighbour = get_neighbor(p, &input);
-
-    let mut no_neighbour = input.clone();
-
-    for n in &neighbour {
-        no_neighbour.retain(|p| p != n);
-        res.push(n.clone());
-    }
-
-    for n in &neighbour {
-        let mut an = all_neighbor(no_neighbour.clone(), n);
-        res.append(&mut an);
-    }
-
-    res.sort();
-    res.dedup();
-
-    res
-}
-
-fn perimeter(input: &Vec<Point>) -> usize {
-    let mut res = 0;
-    for p in input {
-        res += nb_perimeter(p, input);
-    }
-
-    res
-}
-fn nb_perimeter(p: &Point, input: &Vec<Point>) -> usize {
-    4 - get_neighbor(p, input).len()
-}
-
-fn get_neighbor(p: &Point, input: &Vec<Point>) -> Vec<Point> {
-    let mut res = Vec::with_capacity(4);
-
-    let check = vec![
-        Point { x: p.x + 1, y: p.y },
-        Point { x: p.x - 1, y: p.y },
-        Point { x: p.x, y: p.y + 1 },
-        Point { x: p.x, y: p.y - 1 },
-    ];
-    for c in check {
-        if input.contains(&c) {
-            res.push(c);
-        }
-    }
-    res
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn neighour() {
-        assert_eq!(all_neighbor(vec![], &Point { x: 0, y: 0 }), vec![Point { x: 0, y: 0 }]);
-        assert_eq!(
-            all_neighbor(
-                vec![Point { x: 1, y: 0 }, Point { x: 2, y: 0 }],
-                &Point { x: 0, y: 0 }
-            ),
-            vec![Point { x: 0, y: 0 }, Point { x: 1, y: 0 }, Point { x: 2, y: 0 }]
-        );
-    }
 
     #[test]
     fn smaller_example() {
@@ -157,6 +238,7 @@ mod tests {
         container.add_line("BBCD");
         container.add_line("BBCC");
         container.add_line("EEEC");
+        container.after_all_line();
 
         assert_eq!(container.star1(), "140".to_string());
     }
@@ -169,6 +251,7 @@ mod tests {
         container.add_line("OOOOO");
         container.add_line("OXOXO");
         container.add_line("OOOOO");
+        container.after_all_line();
 
         assert_eq!(container.star1(), "772".to_string());
     }
