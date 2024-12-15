@@ -1,13 +1,13 @@
-use helper::{InputReader, Solver};
 use crate::Move::*;
 use crate::Tile::*;
+use helper::{InputReader, Solver};
 
 fn main() {
     let solver: Solver<Container> = Solver {
         example1: "10092".to_string(),
         result1: Some("1406392".to_string()),
         example2: Some("9021".to_string()),
-        result2: None,
+        result2: Some("1429013".to_string()),
         kind: Default::default(),
     };
 
@@ -35,17 +35,16 @@ impl Mapped for Map {
         for rows in self {
             for tile in rows {
                 match tile {
-                    Wall => { chars.push('#') }
-                    Box => { chars.push('O') }
-                    Robot => { chars.push('@') }
-                    Empty => { chars.push('.') }
-                    BoxLeft => { chars.push('[') }
-                    BoxRight => { chars.push(']') }
+                    Wall => chars.push('#'),
+                    Box => chars.push('O'),
+                    Robot => chars.push('@'),
+                    Empty => chars.push('.'),
+                    BoxLeft => chars.push('['),
+                    BoxRight => chars.push(']'),
                 }
             }
             chars.push('\n')
         }
-
 
         chars.into_iter().collect()
     }
@@ -64,12 +63,12 @@ enum Tile {
 impl From<char> for Tile {
     fn from(value: char) -> Self {
         match value {
-            '#' => { Wall }
-            'O' => { Box }
-            '[' => { BoxLeft }
-            ']' => { BoxRight }
-            '@' => { Robot }
-            '.' => { Empty }
+            '#' => Wall,
+            'O' => Box,
+            '[' => BoxLeft,
+            ']' => BoxRight,
+            '@' => Robot,
+            '.' => Empty,
             _ => {
                 panic!("wrong tile kind")
             }
@@ -88,11 +87,13 @@ enum Move {
 impl From<char> for Move {
     fn from(value: char) -> Self {
         match value {
-            '<' => { Left }
-            '>' => { Right }
-            '^' => { Up }
-            'v' => { Down }
-            _ => { panic!("wrong move") }
+            '<' => Left,
+            '>' => Right,
+            '^' => Up,
+            'v' => Down,
+            _ => {
+                panic!("wrong move")
+            }
         }
     }
 }
@@ -103,17 +104,13 @@ struct Position {
     y: usize,
 }
 
-
 impl InputReader for Container {
     fn after_all_line(&mut self) {
         self.moves.reverse();
         for (y, rows) in self.map.iter().enumerate() {
             for (x, tile) in rows.iter().enumerate() {
                 if tile == &Robot {
-                    self.robot = Position {
-                        x,
-                        y,
-                    };
+                    self.robot = Position { x, y };
                     return;
                 }
             }
@@ -128,10 +125,10 @@ impl InputReader for Container {
             self.map_with = line.len()
         }
         if line.len() > self.map_with {
-            let mut moves: Vec<Move> = line.chars().into_iter().map(|c| c.into()).collect();
+            let mut moves: Vec<Move> = line.chars().map(|c| c.into()).collect();
             self.moves.append(&mut moves)
         } else {
-            let row: Vec<Tile> = line.chars().into_iter().map(|c| c.into()).collect();
+            let row: Vec<Tile> = line.chars().map(|c| c.into()).collect();
 
             self.map.push(row);
         }
@@ -183,7 +180,7 @@ impl Container {
                 }
             }
             map.push(row);
-        };
+        }
 
         Container {
             map,
@@ -196,23 +193,25 @@ impl Container {
         }
     }
     fn tick(&mut self) -> Option<()> {
-
         let before = self.map.clone();
-        let mut current_move : Move = Left;
+        let mut current_move: Move = Left;
         let mut current_moving = None;
         let res = match self.moves.pop() {
-            None => { None }
+            None => None,
             Some(m) => {
                 current_move = m.clone();
                 let moving = self.get_movable((self.robot.clone(), Robot), &m);
                 current_moving = moving.clone();
                 match moving {
                     None => {}
-                    Some(mut moving) => {
-                        while let Some((p, tile)) = moving.pop() {
-                            let next = p.next(&m);
-                            self.map[next.y][next.x] = self.map[p.y][p.x];
+                    Some(moving) => {
+                        for (p, _) in &moving {
                             self.map[p.y][p.x] = Empty;
+                        }
+
+                        for (p, tile) in moving {
+                            let next = p.next(&m);
+                            self.map[next.y][next.x] = tile;
                             if tile == Robot {
                                 self.robot = next;
                             }
@@ -224,7 +223,7 @@ impl Container {
             }
         };
 
-        if !self.check_big(){
+        if !self.check_big() {
             println!("current move {current_move:?}");
             println!("{:?}", current_moving);
             println!("{}", before.display());
@@ -235,11 +234,11 @@ impl Container {
         res
     }
 
-    fn check_big(&self) -> bool{
-        for rows in &self.map{
+    fn check_big(&self) -> bool {
+        for rows in &self.map {
             for w in rows.windows(2) {
-                if w[0] == BoxLeft && w[1] != BoxRight{
-                    return false
+                if w[0] == BoxLeft && w[1] != BoxRight {
+                    return false;
                 }
             }
         }
@@ -253,109 +252,97 @@ impl Container {
         movable.push(current.clone());
         let next_tile = self.map[next.y][next.x];
         match next_tile {
-            Wall => {
-                None
-            }
-            Box => {
-                self.get_movable((next.clone(), next_tile), m).map(|mut moving|
-                    {
-                        movable.append(&mut moving);
-                        movable
-                    }
-                )
-            }
+            Wall => None,
+            Box => self
+                .get_movable((next.clone(), next_tile), m)
+                .map(|mut moving| {
+                    movable.append(&mut moving);
+                    movable
+                }),
             Robot => {
                 panic!("another robots ?")
             }
-            Empty => {
-                Some(movable)
-            }
-            BoxLeft => {
-                match m {
-                    Up => {
-                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Right => {
-                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Down => {
-                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Left => {
-                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                }
-            }
-            BoxRight => {
-                match m {
-                    Up => {
-                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Right => {
-                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Down => {
-                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                    Left => {
-                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
-                            {
-                                movable.append(&mut moving);
-                                movable
-                            }
-                        )
-                    }
-                }
-            }
+            Empty => Some(movable),
+            BoxLeft => match m {
+                Up => self
+                    .get_big_box_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Right => self
+                    .get_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Down => self
+                    .get_big_box_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Left => self
+                    .get_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+            },
+            BoxRight => match m {
+                Up => self
+                    .get_big_box_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Right => self
+                    .get_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Down => self
+                    .get_big_box_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+                Left => self
+                    .get_movable((next.clone(), next_tile), m)
+                    .map(|mut moving| {
+                        movable.append(&mut moving);
+                        movable
+                    }),
+            },
         }
     }
 
-    fn get_big_box_movable(&self, next: (Position, Tile), m: &Move) -> Option<Vec<(Position, Tile)>> {
+    fn get_big_box_movable(
+        &self,
+        next: (Position, Tile),
+        m: &Move,
+    ) -> Option<Vec<(Position, Tile)>> {
         let mut movable: Vec<(Position, Tile)> = vec![];
 
         let direct = self.get_movable(next.clone(), m);
 
         let next_pos = next.0.clone();
 
-        let other = self.get_movable((Position {
-            x: if next.1 == BoxLeft { next_pos.x + 1 } else { next_pos.x - 1 },
-            y: next_pos.y,
-        }, if next.1 == BoxLeft { BoxRight } else { BoxLeft }), m);
+        let other = self.get_movable(
+            (
+                Position {
+                    x: if next.1 == BoxLeft {
+                        next_pos.x + 1
+                    } else {
+                        next_pos.x - 1
+                    },
+                    y: next_pos.y,
+                },
+                if next.1 == BoxLeft { BoxRight } else { BoxLeft },
+            ),
+            m,
+        );
 
         match (direct, other) {
             (Some(mut direct), Some(mut right)) => {
@@ -363,7 +350,7 @@ impl Container {
                 movable.append(&mut right);
                 Some(movable)
             }
-            (_, _) => None
+            (_, _) => None,
         }
     }
 
@@ -373,8 +360,8 @@ impl Container {
             for (x, tile) in rows.iter().enumerate() {
                 match tile {
                     Wall => {}
-                    Box => { res += 100 * y + x }
-                    BoxLeft => { res += 100 * y + x }
+                    Box => res += 100 * y + x,
+                    BoxLeft => res += 100 * y + x,
                     BoxRight => {}
                     Robot => {}
                     Empty => {}
@@ -389,34 +376,25 @@ impl Container {
 impl Position {
     fn next(&self, m: &Move) -> Self {
         match m {
-            Up => {
-                Position {
-                    x: self.x,
-                    y: self.y - 1,
-                }
-            }
-            Right => {
-                Position {
-                    x: self.x + 1,
-                    y: self.y,
-                }
-            }
-            Down => {
-                Position {
-                    x: self.x,
-                    y: self.y + 1,
-                }
-            }
-            Left => {
-                Position {
-                    x: self.x - 1,
-                    y: self.y,
-                }
-            }
+            Up => Position {
+                x: self.x,
+                y: self.y - 1,
+            },
+            Right => Position {
+                x: self.x + 1,
+                y: self.y,
+            },
+            Down => Position {
+                x: self.x,
+                y: self.y + 1,
+            },
+            Left => Position {
+                x: self.x - 1,
+                y: self.y,
+            },
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -435,11 +413,14 @@ mod tests {
 #......#
 ########
 
-<^^>>>vv<v>>v<<"#);
+<^^>>>vv<v>>v<<"#,
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #..O.O.#
 ##@.O..#
@@ -448,11 +429,18 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move <:");
+            )
+            .map
+            .display(),
+            "Move <:"
+        );
 
+        println!("{}", container.map.display());
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #.@O.O.#
 ##..O..#
@@ -461,11 +449,17 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move ^:");
+            )
+            .map
+            .display(),
+            "Move ^:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #.@O.O.#
 ##..O..#
@@ -474,11 +468,17 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move ^:");
+            )
+            .map
+            .display(),
+            "Move ^:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #..@OO.#
 ##..O..#
@@ -487,11 +487,17 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move >:");
+            )
+            .map
+            .display(),
+            "Move >:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #...@OO#
 ##..O..#
@@ -500,11 +506,17 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move >:");
+            )
+            .map
+            .display(),
+            "Move >:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #...@OO#
 ##..O..#
@@ -513,11 +525,17 @@ mod tests {
 #...O..#
 #......#
 ########"#
-        ).map.display(), "Move >:");
+            )
+            .map
+            .display(),
+            "Move >:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##..@..#
@@ -526,11 +544,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move v:");
+            )
+            .map
+            .display(),
+            "Move v:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##..@..#
@@ -539,11 +563,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move v:");
+            )
+            .map
+            .display(),
+            "Move v:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.@...#
@@ -552,11 +582,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move <:");
+            )
+            .map
+            .display(),
+            "Move <:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -565,11 +601,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move v:");
+            )
+            .map
+            .display(),
+            "Move v:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -578,11 +620,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move >:");
+            )
+            .map
+            .display(),
+            "Move >:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -591,11 +639,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move >:");
+            )
+            .map
+            .display(),
+            "Move >:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -604,11 +658,17 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move v:");
+            )
+            .map
+            .display(),
+            "Move v:"
+        );
 
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -617,10 +677,16 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move <:");
+            )
+            .map
+            .display(),
+            "Move <:"
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ########
 #....OO#
 ##.....#
@@ -629,11 +695,14 @@ mod tests {
 #...O..#
 #...O..#
 ########"#
-        ).map.display(), "Move <:");
+            )
+            .map
+            .display(),
+            "Move <:"
+        );
 
         assert_eq!(container.gps(), 2028, "gps")
     }
-
 
     #[test]
     fn big_room() {
@@ -647,13 +716,15 @@ mod tests {
 #.....#
 #######
 
-<vv<<^^<<^^"#);
+<vv<<^^<<^^"#,
+        );
 
         let mut container = small.enlarge();
 
-
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -661,10 +732,15 @@ mod tests {
 ##....[]....##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -672,10 +748,15 @@ mod tests {
 ##....[]....##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -683,10 +764,15 @@ mod tests {
 ##....[].@..##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -694,10 +780,15 @@ mod tests {
 ##....[]....##
 ##.......@..##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -705,10 +796,15 @@ mod tests {
 ##....[]....##
 ##......@...##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##..........##
@@ -716,12 +812,17 @@ mod tests {
 ##....[]....##
 ##.....@....##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
 
-        println!("{}",container.map.display());
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        println!("{}", container.map.display());
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##...[][]...##
@@ -729,10 +830,15 @@ mod tests {
 ##.....@....##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##...[][]...##
@@ -740,10 +846,15 @@ mod tests {
 ##.....@....##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##...[][]...##
@@ -751,10 +862,15 @@ mod tests {
 ##....@.....##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##...[][]...##
@@ -762,10 +878,15 @@ mod tests {
 ##...@......##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##......##..##
 ##...[][]...##
@@ -773,10 +894,15 @@ mod tests {
 ##..........##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
         container.tick();
-        assert_eq!(container.map.display(), Container::from_str(
-            r#"
+        assert_eq!(
+            container.map.display(),
+            Container::from_str(
+                r#"
 ##############
 ##...[].##..##
 ##...@.[]...##
@@ -784,7 +910,9 @@ mod tests {
 ##..........##
 ##..........##
 ##############"#
-        ).map.display());
+            )
+            .map
+            .display()
+        );
     }
 }
-
