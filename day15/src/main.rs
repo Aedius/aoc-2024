@@ -5,8 +5,8 @@ use crate::Tile::*;
 fn main() {
     let solver: Solver<Container> = Solver {
         example1: "10092".to_string(),
-        result1: None,
-        example2: None,
+        result1: Some("1406392".to_string()),
+        example2: Some("9021".to_string()),
         result2: None,
         kind: Default::default(),
     };
@@ -39,6 +39,8 @@ impl Mapped for Map {
                     Box => { chars.push('O') }
                     Robot => { chars.push('@') }
                     Empty => { chars.push('.') }
+                    BoxLeft => { chars.push('[') }
+                    BoxRight => { chars.push(']') }
                 }
             }
             chars.push('\n')
@@ -53,6 +55,8 @@ impl Mapped for Map {
 enum Tile {
     Wall,
     Box,
+    BoxLeft,
+    BoxRight,
     Robot,
     Empty,
 }
@@ -62,10 +66,12 @@ impl From<char> for Tile {
         match value {
             '#' => { Wall }
             'O' => { Box }
+            '[' => { BoxLeft }
+            ']' => { BoxRight }
             '@' => { Robot }
             '.' => { Empty }
             _ => {
-                todo!("wrong tile")
+                panic!("wrong tile kind")
             }
         }
     }
@@ -86,7 +92,7 @@ impl From<char> for Move {
             '>' => { Right }
             '^' => { Up }
             'v' => { Down }
-            _ => { todo!("wrong move") }
+            _ => { panic!("wrong move") }
         }
     }
 }
@@ -132,74 +138,246 @@ impl InputReader for Container {
     }
 
     fn star1(&self) -> String {
-
         let mut container = self.clone();
-        while container.tick().is_some(){
-
-        }
+        while container.tick().is_some() {}
 
         container.gps().to_string()
     }
 
     fn star2(&self) -> String {
-        todo!("star2")
+        let mut container = self.enlarge();
+        while container.tick().is_some() {}
+
+        println!("{}", container.map.display());
+
+        container.gps().to_string()
     }
 }
 
 impl Container {
+    fn enlarge(&self) -> Self {
+        let mut map = Vec::new();
+
+        for rows in &self.map {
+            let mut row = Vec::new();
+            for tile in rows {
+                match tile {
+                    Wall => {
+                        row.push(Wall);
+                        row.push(Wall);
+                    }
+                    Box => {
+                        row.push(BoxLeft);
+                        row.push(BoxRight);
+                    }
+                    BoxLeft => {}
+                    BoxRight => {}
+                    Robot => {
+                        row.push(Robot);
+                        row.push(Empty);
+                    }
+                    Empty => {
+                        row.push(Empty);
+                        row.push(Empty);
+                    }
+                }
+            }
+            map.push(row);
+        };
+
+        Container {
+            map,
+            moves: self.moves.clone(),
+            map_with: self.map_with * 2,
+            robot: Position {
+                x: self.robot.x * 2,
+                y: self.robot.y,
+            },
+        }
+    }
     fn tick(&mut self) -> Option<()> {
-        match self.moves.pop() {
+
+        let before = self.map.clone();
+        let mut current_move : Move = Left;
+        let mut current_moving = None;
+        let res = match self.moves.pop() {
             None => { None }
             Some(m) => {
-                let mut current = self.robot.clone();
-                let mut can_move = vec![current.clone()];
-
-
-                loop {
-                    let next = current.next(&m);
-                    match self.map[next.y][next.x] {
-                        Wall => {
-                            can_move = Vec::new();
-                            break;
-                        }
-                        Box => {
-                            can_move.push(next.clone());
-                        }
-                        Robot => {
-                            println!("{}", self.map.display());
-
-                            todo!("another robots ?")
-                        }
-                        Empty => {
-                            break;
+                current_move = m.clone();
+                let moving = self.get_movable((self.robot.clone(), Robot), &m);
+                current_moving = moving.clone();
+                match moving {
+                    None => {}
+                    Some(mut moving) => {
+                        while let Some((p, tile)) = moving.pop() {
+                            let next = p.next(&m);
+                            self.map[next.y][next.x] = self.map[p.y][p.x];
+                            self.map[p.y][p.x] = Empty;
+                            if tile == Robot {
+                                self.robot = next;
+                            }
                         }
                     }
-                    current = next;
                 }
-
-
-                if !can_move.is_empty() {
-                    while let Some(p) = can_move.pop() {
-                        let next = p.next(&m);
-                        self.map[next.y][next.x] = self.map[p.y][p.x];
-                    }
-                    self.map[self.robot.y][self.robot.x] = Empty;
-                    self.robot = self.robot.next(&m);
-                }
-
 
                 Some(())
+            }
+        };
+
+        if !self.check_big(){
+            println!("current move {current_move:?}");
+            println!("{:?}", current_moving);
+            println!("{}", before.display());
+            println!("{}", self.map.display());
+            panic!("OUPSI");
+        }
+
+        res
+    }
+
+    fn check_big(&self) -> bool{
+        for rows in &self.map{
+            for w in rows.windows(2) {
+                if w[0] == BoxLeft && w[1] != BoxRight{
+                    return false
+                }
+            }
+        }
+        true
+    }
+
+    fn get_movable(&self, current: (Position, Tile), m: &Move) -> Option<Vec<(Position, Tile)>> {
+        let mut movable = vec![];
+
+        let next = current.0.next(m);
+        movable.push(current.clone());
+        let next_tile = self.map[next.y][next.x];
+        match next_tile {
+            Wall => {
+                None
+            }
+            Box => {
+                self.get_movable((next.clone(), next_tile), m).map(|mut moving|
+                    {
+                        movable.append(&mut moving);
+                        movable
+                    }
+                )
+            }
+            Robot => {
+                panic!("another robots ?")
+            }
+            Empty => {
+                Some(movable)
+            }
+            BoxLeft => {
+                match m {
+                    Up => {
+                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Right => {
+                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Down => {
+                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Left => {
+                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                }
+            }
+            BoxRight => {
+                match m {
+                    Up => {
+                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Right => {
+                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Down => {
+                        self.get_big_box_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                    Left => {
+                        self.get_movable((next.clone(), next_tile), m).map(|mut moving|
+                            {
+                                movable.append(&mut moving);
+                                movable
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 
+    fn get_big_box_movable(&self, next: (Position, Tile), m: &Move) -> Option<Vec<(Position, Tile)>> {
+        let mut movable: Vec<(Position, Tile)> = vec![];
+
+        let direct = self.get_movable(next.clone(), m);
+
+        let next_pos = next.0.clone();
+
+        let other = self.get_movable((Position {
+            x: if next.1 == BoxLeft { next_pos.x + 1 } else { next_pos.x - 1 },
+            y: next_pos.y,
+        }, if next.1 == BoxLeft { BoxRight } else { BoxLeft }), m);
+
+        match (direct, other) {
+            (Some(mut direct), Some(mut right)) => {
+                movable.append(&mut direct);
+                movable.append(&mut right);
+                Some(movable)
+            }
+            (_, _) => None
+        }
+    }
 
     fn gps(&self) -> usize {
         let mut res = 0;
         for (y, rows) in self.map.iter().enumerate() {
             for (x, tile) in rows.iter().enumerate() {
-                if tile == &Box {
-                    res += 100 * y + x
+                match tile {
+                    Wall => {}
+                    Box => { res += 100 * y + x }
+                    BoxLeft => { res += 100 * y + x }
+                    BoxRight => {}
+                    Robot => {}
+                    Empty => {}
                 }
             }
         }
@@ -454,6 +632,159 @@ mod tests {
         ).map.display(), "Move <:");
 
         assert_eq!(container.gps(), 2028, "gps")
+    }
+
+
+    #[test]
+    fn big_room() {
+        let small = Container::from_str(
+            r#"
+#######
+#...#.#
+#.....#
+#..OO@#
+#..O..#
+#.....#
+#######
+
+<vv<<^^<<^^"#);
+
+        let mut container = small.enlarge();
+
+
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##....[][]@.##
+##....[]....##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##...[][]@..##
+##....[]....##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##...[][]...##
+##....[].@..##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##...[][]...##
+##....[]....##
+##.......@..##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##...[][]...##
+##....[]....##
+##......@...##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##..........##
+##...[][]...##
+##....[]....##
+##.....@....##
+##############"#
+        ).map.display());
+        container.tick();
+
+        println!("{}",container.map.display());
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##...[][]...##
+##....[]....##
+##.....@....##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##...[][]...##
+##....[]....##
+##.....@....##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##...[][]...##
+##....[]....##
+##....@.....##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##...[][]...##
+##....[]....##
+##...@......##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##......##..##
+##...[][]...##
+##...@[]....##
+##..........##
+##..........##
+##############"#
+        ).map.display());
+        container.tick();
+        assert_eq!(container.map.display(), Container::from_str(
+            r#"
+##############
+##...[].##..##
+##...@.[]...##
+##....[]....##
+##..........##
+##..........##
+##############"#
+        ).map.display());
     }
 }
 
