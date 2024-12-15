@@ -143,6 +143,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "day15"
+version = "0.1.0"
+dependencies = [
+ "helper",
+ "regex",
+]
+
+[[package]]
 name = "daytemplate"
 version = "0.1.0"
 dependencies = [

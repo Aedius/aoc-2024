@@ -2,7 +2,7 @@ use easy_reader::EasyReader;
 use std::marker::PhantomData;
 use std::{fs::File, io::Error};
 
-pub trait InputReader {
+pub trait InputReader : Default {
     fn on_start(&mut self) {}
     fn after_all_line(&mut self) {}
 
@@ -18,6 +18,16 @@ pub trait InputReader {
         self.after_all_line();
 
         Ok(())
+    }
+
+    fn from_str( input:&'static str)-> Self {
+        let mut s = Self::default();
+        for line in input.lines() {
+            s.add_line(line)
+        }
+        s.after_all_line();
+
+        s
     }
 
     fn add_line(&mut self, line: &str);
