@@ -213,8 +213,7 @@ impl InputReader for Container {
     }
 
     fn star2(&self) -> String {
-
-        if self.computer.instructions.len() < 10{
+        if self.computer.instructions.len() < 10 {
             return "nope".to_string();
         }
 

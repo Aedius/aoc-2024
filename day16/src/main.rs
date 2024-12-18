@@ -1,7 +1,7 @@
-use std::cmp::{ Ordering};
 use crate::Direction::*;
 use crate::Tile::*;
 use helper::{InputReader, Solver};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 fn main() {
@@ -57,14 +57,12 @@ impl PartialOrd<Self> for Position {
     }
 }
 
-impl Ord for Position{
+impl Ord for Position {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.x.cmp(&other.x){
-            Ordering::Less => {Ordering::Less}
-            Ordering::Equal => {
-                self.y.cmp(&other.y)
-            }
-            Ordering::Greater => {Ordering::Greater}
+        match self.x.cmp(&other.x) {
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => self.y.cmp(&other.y),
+            Ordering::Greater => Ordering::Greater,
         }
     }
 }
@@ -99,7 +97,7 @@ struct Container {
     height: usize,
     width: usize,
     min_score: usize,
-    snake_by_score:HashMap<usize, Vec<Vec<SnakePart>>>
+    snake_by_score: HashMap<usize, Vec<Vec<SnakePart>>>,
 }
 
 impl InputReader for Container {
@@ -129,14 +127,13 @@ impl InputReader for Container {
     fn star1(&self) -> String {
         let mut container = self.clone();
 
-        let mut head = vec![vec![
-            SnakePart {
-                position: self.start,
-                score: 0,
-                direction: East,
-            }]];
+        let mut head = vec![vec![SnakePart {
+            position: self.start,
+            score: 0,
+            direction: East,
+        }]];
 
-        while !head.is_empty(){
+        while !head.is_empty() {
             head = container.find_next(head, false);
         }
 
@@ -146,20 +143,24 @@ impl InputReader for Container {
     fn star2(&self) -> String {
         let mut container = self.clone();
 
-        let mut head = vec![vec![
-            SnakePart {
-                position: self.start,
-                score: 0,
-                direction: East,
-            }]];
+        let mut head = vec![vec![SnakePart {
+            position: self.start,
+            score: 0,
+            direction: East,
+        }]];
 
-        while !head.is_empty(){
+        while !head.is_empty() {
             head = container.find_next(head, true);
         }
 
-        let snakes= container.snake_by_score.get(&container.min_score).unwrap();
+        let snakes = container.snake_by_score.get(&container.min_score).unwrap();
 
-        let mut positions : Vec<Position>= snakes.iter().flatten().into_iter().map(|sp| sp.position).collect();
+        let mut positions: Vec<Position> = snakes
+            .iter()
+            .flatten()
+            .into_iter()
+            .map(|sp| sp.position)
+            .collect();
 
         positions.sort();
         positions.dedup();
@@ -174,7 +175,7 @@ struct SnakePart {
     direction: Direction,
 }
 
-impl SnakePart{
+impl SnakePart {
     fn compute_score(&self, direction: Direction) -> usize {
         self.score + if self.direction == direction { 1 } else { 1001 }
     }
@@ -190,15 +191,13 @@ impl Container {
                 let next_position = head.position.get_next(direction);
                 let next = self.map.get_mut(&next_position).unwrap();
                 let new_value = match next {
-                    Wall => { None }
-                    Start => { None }
-                    Empty => {
-                        Some(SnakePart {
-                            position: next_position,
-                            score: head.compute_score(direction),
-                            direction,
-                        })
-                    }
+                    Wall => None,
+                    Start => None,
+                    Empty => Some(SnakePart {
+                        position: next_position,
+                        score: head.compute_score(direction),
+                        direction,
+                    }),
                     End => {
                         let new_score = head.score + 1;
                         dbg!(new_score);
@@ -210,7 +209,6 @@ impl Container {
                         None
                     }
                     Path(_direction, path_score) => {
-
                         let new_snake_part = SnakePart {
                             position: next_position,
                             score: head.compute_score(direction),
@@ -218,11 +216,11 @@ impl Container {
                         };
 
                         // if !all_path{
-                            if head.compute_score(direction) <= *path_score {
-                                Some(new_snake_part)
-                            } else {
-                                None
-                            }
+                        if head.compute_score(direction) <= *path_score {
+                            Some(new_snake_part)
+                        } else {
+                            None
+                        }
                         // }else {
                         //     if snake.contains(&new_snake_part){
                         //        None
@@ -243,7 +241,6 @@ impl Container {
 
         output
     }
-
 }
 
 #[cfg(test)]
